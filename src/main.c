@@ -5,14 +5,13 @@
 #include <dirent.h>
 #include <string.h>
 #include <errno.h>
+#include "utils/path.h"
 
 #define handle_error(ERROR, FORMAT, ...)                                                                                                                       \
     if (ERROR) {                                                                                                                                               \
         fprintf(stderr, "%s -> %s -> %i -> Error(%i):\n\t%s\n\t" FORMAT "\n", __FILE_NAME__, __FUNCTION__, __LINE__, errno, strerror(errno), ##__VA_ARGS__);   \
         exit(EXIT_FAILURE);                                                                                                                                    \
     }
-
-const char* dirname = "../Music/";
 
 typedef struct song_metadata {
     char* title;
@@ -32,7 +31,7 @@ void free_song_metadata(song_metadata *m) {
     if (m->genre) free(m->genre);
 }
 
-song_metadata get_name(char* name) {
+song_metadata get_name(char* name, char* dirname) {
     size_t len_dirname = strlen(dirname);
     size_t len_name = strlen(name);
     char *fullpath = (char*)malloc(len_dirname + len_name + 2);
@@ -40,7 +39,7 @@ song_metadata get_name(char* name) {
 
     strcpy(fullpath, dirname);
     handle_error(fullpath == NULL, "strcpy");
-    
+
     strcat(fullpath, name);
     handle_error(fullpath == NULL, "strcat");
 
@@ -111,8 +110,8 @@ void dir_recurse (DIR *parent, int level) {
             } else {
                 perror("fdopendir");
             }
-        } else if (errno == ENOTDIR) { /* Regular file */
-            song_metadata m = get_name(ent->d_name);
+        } else if (errno == ENOTDIR) {
+            song_metadata m = get_name(ent->d_name, get_path_from_fd(parent_fd));
             printf("%s\t%s\t%s\t%s\t%s\t%d\t%d\n", m.title, m.artist, m.album, m.comment, m.genre, m.year, m.track);
             free_song_metadata(&m);
 
@@ -123,6 +122,8 @@ void dir_recurse (DIR *parent, int level) {
 }
 
 int main() {
+
+    const char* dirname = "../Music/";
 
     DIR *dirP = opendir(dirname);
     handle_error(dirP == NULL, "open dir: %s", dirname)
