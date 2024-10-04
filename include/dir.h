@@ -1,12 +1,10 @@
-#ifndef MPGUI_PATH_H
-#define MPGUI_PATH_H
+#ifndef MPGUI_DIR_H
+#define MPGUI_DIR_H
 
-#include <stdio.h>
 #include <unistd.h>
-#include <limits.h>
-#include <errno.h>
-#include <string.h>
-#include <stdlib.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include "song.h"
 
 #define handle_error(ERROR, FORMAT, ...)                                                                                                                       \
     if (ERROR) {                                                                                                                                               \
@@ -14,6 +12,9 @@
         exit(EXIT_FAILURE);                                                                                                                                    \
     }
 
-char* get_path_from_fd(int fd);
+char* get_dir_from_fd(int fd);
 
-#endif //MPGUI_PATH_H
+void dir_recurse (DIR *parent, int level);
+
+
+#endif //MPGUI_DIR_H
