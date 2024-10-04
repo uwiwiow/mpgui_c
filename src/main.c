@@ -31,57 +31,55 @@ void free_song_metadata(song_metadata *m) {
     if (m->genre) free(m->genre);
 }
 
-song_metadata get_name(char* name, char* dirname) {
+int get_name(char* name, char* dirname, song_metadata* songMetadata) {
     size_t len_dirname = strlen(dirname);
     size_t len_name = strlen(name);
     char *fullpath = (char*)malloc(len_dirname + len_name + 2);
     handle_error(fullpath == NULL, "malloc");
 
     strcpy(fullpath, dirname);
-    handle_error(fullpath == NULL, "strcpy");
-
     strcat(fullpath, name);
-    handle_error(fullpath == NULL, "strcat");
 
     TagLib_File *song = taglib_file_new(fullpath);
-    handle_error(song == NULL, "taglib_file_new");
+    handle_error(song == NULL, "taglib_file_new: %s", fullpath);
 
     TagLib_Tag *tag = taglib_file_tag(song);
+    if (tag == NULL) {
+        fprintf(stderr, "%s -> %s -> %i -> Error:\n\ttaglib_file_tag: %s\n", __FILE_NAME__, __FUNCTION__, __LINE__ - 2,  fullpath);
+        taglib_file_free(song);
+        free(fullpath);
+        return -1;
+    }
 
-    char *title = strdup(taglib_tag_title(tag));
-    handle_error(title == NULL, "strdup(title)");
+    char *title = taglib_tag_title(tag);
+    songMetadata->title = (title && strlen(title) > 0) ? strdup(title) : strdup(name);
+    handle_error(songMetadata->title == NULL, "strdup(title): %s", fullpath);
 
-    char *artist = strdup(taglib_tag_artist(tag));
-    handle_error(artist == NULL, "strdup(artist)");
+    char *artist = taglib_tag_artist(tag);
+    songMetadata->artist = (artist && strlen(artist) > 0) ? strdup(artist) : strdup("Unknown");
+    handle_error(songMetadata->artist == NULL, "strdup(artist): %s", fullpath);
 
-    char *album = strdup(taglib_tag_album(tag));
-    handle_error(album == NULL, "strdup(album)");
+    char *album = taglib_tag_album(tag);
+    songMetadata->album = (album && strlen(album) > 0) ? strdup(album) : strdup("Unknown");
+    handle_error(songMetadata->album == NULL, "strdup(album): %s", fullpath);
 
-    char *comment = strdup(taglib_tag_comment(tag));
-    handle_error(comment == NULL, "strdup(comment)");
+    char *comment = taglib_tag_comment(tag);
+    songMetadata->comment = (comment && strlen(comment) > 0) ? strdup(comment) : strdup("Unknown");
+    handle_error(songMetadata->comment == NULL, "strdup(comment): %s", fullpath);
 
-    char *genre = strdup(taglib_tag_genre(tag));
-    handle_error(genre == NULL, "strdup(genre)");
+    char *genre = taglib_tag_genre(tag);
+    songMetadata->genre = (genre && strlen(genre) > 0) ? strdup(genre) : strdup("Unknown");
+    handle_error(songMetadata->genre == NULL, "strdup(genre): %s", fullpath);
 
-    unsigned int year = taglib_tag_year(tag);
-    unsigned int track = taglib_tag_track(tag);
-
-    song_metadata m = {
-            title,
-            artist,
-            album,
-            comment,
-            genre,
-            year,
-            track
-    };
+    songMetadata->year = taglib_tag_year(tag);
+    songMetadata->track = taglib_tag_track(tag);
 
     taglib_tag_free_strings();
     taglib_file_free(song);
     free(fullpath);
-
-    return m;
+    return 0;
 }
+
 
 void dir_recurse (DIR *parent, int level) {
     struct dirent *ent;
@@ -111,9 +109,11 @@ void dir_recurse (DIR *parent, int level) {
                 perror("fdopendir");
             }
         } else if (errno == ENOTDIR) {
-            song_metadata m = get_name(ent->d_name, get_path_from_fd(parent_fd));
-            printf("%s\t%s\t%s\t%s\t%s\t%d\t%d\n", m.title, m.artist, m.album, m.comment, m.genre, m.year, m.track);
-            free_song_metadata(&m);
+            song_metadata m;
+            if (get_name(ent->d_name, get_path_from_fd(parent_fd), &m) != -1) {
+                printf("%s\t%s\t%s\t%s\t%s\t%d\t%d\n", m.title, m.artist, m.album, m.comment, m.genre, m.year, m.track);
+                free_song_metadata(&m);
+            }
 
         } else {
             perror("openat");
